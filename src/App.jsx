@@ -10,6 +10,8 @@ import { RecipeForm } from './components/RecipeForm';
 import { RecipesList } from './components/RecipesList';
 import { RecipeDetail } from './components/RecipeDetail';
 import { Dashboard } from './components/Dashboard';
+import { QuickAddVoice } from './components/QuickAddVoice';
+import { ReceiptPhotoUpload } from './components/ReceiptPhotoUpload';
 import { BottomNav } from './components/BottomNav';
 
 export default function App() {
@@ -19,13 +21,14 @@ export default function App() {
   const [householdLoading, setHouseholdLoading] = useState(false);
   const [currentTab, setCurrentTab] = useState('inventory');
 
-  const { items, loading, error, networkError, addItem, deleteItem, units, categories, locations } =
+  const { items, loading, error, networkError, addItem, deleteItem, updateItem, units, categories, locations } =
     usePantryItems(householdId);
 
   const { recipes, createRecipe, updateRecipe, deleteRecipe } = useUserRecipes(householdId);
   const [showRecipeForm, setShowRecipeForm] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [isListening, setIsListening] = useState(false);
 
   // Check for existing session and set up auth listener
   useEffect(() => {
@@ -200,6 +203,18 @@ export default function App() {
             {/* Inventory Tab */}
             {currentTab === 'inventory' && (
               <>
+                <QuickAddVoice
+                  onAdd={handleAddItem}
+                  isListening={isListening}
+                  setIsListening={setIsListening}
+                />
+                <ReceiptPhotoUpload
+                  onItemsExtracted={(items) => {
+                    items.forEach((item) => {
+                      handleAddItem(item.name, item.quantity, item.unit, 'Other', item.location, null);
+                    });
+                  }}
+                />
                 <AddItemForm
                   onAdd={handleAddItem}
                   units={units}
@@ -211,6 +226,7 @@ export default function App() {
                 <PantryList
                   items={items}
                   onDelete={handleDeleteItem}
+                  onUpdate={updateItem}
                   networkError={networkError}
                   categories={categories}
                   locations={locations}

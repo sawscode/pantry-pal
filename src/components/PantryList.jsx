@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ItemCard } from './ItemCard';
 
-export function PantryList({ items, onDelete, networkError, categories, locations }) {
+export function PantryList({ items, onDelete, onUpdate, networkError, categories, locations }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedLocation, setSelectedLocation] = useState('All');
@@ -116,7 +116,7 @@ export function PantryList({ items, onDelete, networkError, categories, location
       ) : (
         <div className="space-y-3">
           {filteredItems.map((item) => (
-            <ItemCard key={item.id} item={item} onDelete={onDelete} />
+            <ItemCard key={item.id} item={item} onDelete={onDelete} onUpdate={onUpdate} />
           ))}
         </div>
       )}

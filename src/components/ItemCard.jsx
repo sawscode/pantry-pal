@@ -31,9 +31,10 @@ function getExpirationStatus(expirationDate) {
   return null;
 }
 
-export function ItemCard({ item, onDelete }) {
+export function ItemCard({ item, onDelete, onUpdate }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const expirationStatus = getExpirationStatus(item.expiration_date);
 
@@ -45,6 +46,35 @@ export function ItemCard({ item, onDelete }) {
     } catch (err) {
       console.error('Delete failed:', err);
       setDeleting(false);
+    }
+  };
+
+  const handleDecrement = async () => {
+    const newQty = item.quantity - 1;
+    if (newQty <= 0) {
+      setShowConfirm(true);
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await onUpdate(item.id, { quantity: newQty });
+    } catch (err) {
+      console.error('Update failed:', err);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleIncrement = async () => {
+    const newQty = item.quantity + 1;
+    setUpdating(true);
+    try {
+      await onUpdate(item.id, { quantity: newQty });
+    } catch (err) {
+      console.error('Update failed:', err);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -98,9 +128,25 @@ export function ItemCard({ item, onDelete }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {item.quantity} {item.unit}
-          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDecrement}
+              disabled={updating}
+              className="px-2 py-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded text-sm font-bold disabled:opacity-50"
+            >
+              −
+            </button>
+            <p className="text-sm text-gray-600 dark:text-gray-400 min-w-[60px] text-center">
+              {item.quantity} {item.unit}
+            </p>
+            <button
+              onClick={handleIncrement}
+              disabled={updating}
+              className="px-2 py-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded text-sm font-bold disabled:opacity-50"
+            >
+              +
+            </button>
+          </div>
 
           {expirationStatus && (
             <span className={`text-xs font-semibold px-2 py-1 rounded ${expirationStatus.color}`}>
