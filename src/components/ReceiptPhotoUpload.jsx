@@ -16,80 +16,44 @@ export function ReceiptPhotoUpload({ onItemsExtracted }) {
     const reader = new FileReader();
     reader.onload = (e) => {
       setPhoto(e.target.result);
-      extractItemsFromImage(file);
+      extractItemsWithClaude(e.target.result);
     };
     reader.readAsDataURL(file);
   };
 
-  const extractItemsFromImage = async (file) => {
+  const extractItemsWithClaude = async (imageData) => {
     setExtracting(true);
     try {
-      // Load Tesseract if not already loaded
-      const Tesseract = window.Tesseract;
-      if (!Tesseract) {
-        // Fallback: show prompt for manual entry
-        toast.error('OCR not available. Please enter items manually.');
+      const response = await fetch('/.netlify/functions/extract-receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageData }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.details || 'Failed to extract items');
+      }
+
+      const { items } = await response.json();
+
+      if (items.length === 0) {
+        toast.error('No items found in receipt');
         setExtracting(false);
         return;
       }
 
-      // Convert file to data URL for Tesseract
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const { data } = await Tesseract.recognize(e.target.result, 'eng');
-          const text = data.text;
-
-          // Parse items from OCR text using simple regex
-          const items = parseReceiptText(text);
-          setExtracted(items);
-          setConfirming(true);
-        } catch (err) {
-          console.error('OCR error:', err);
-          toast.error('Failed to extract text from image');
-        } finally {
-          setExtracting(false);
-        }
-      };
-      reader.readAsDataURL(file);
+      setExtracted(items);
+      setConfirming(true);
+      toast.success(`Found ${items.length} items!`);
     } catch (err) {
-      console.error('OCR setup error:', err);
-      toast.error('OCR setup failed');
+      console.error('Claude extraction error:', err);
+      toast.error(err.message || 'Failed to extract items from receipt');
+    } finally {
       setExtracting(false);
     }
-  };
-
-  const parseReceiptText = (text) => {
-    // Simple parsing: look for patterns like "Item 1.99" or "Milk 3.50"
-    const lines = text.split('\n').filter((l) => l.trim());
-    const items = [];
-
-    lines.forEach((line) => {
-      // Skip lines that are clearly prices or totals
-      if (line.includes('Total') || line.includes('Subtotal') || line.includes('Tax')) {
-        return;
-      }
-
-      // Try to extract item name and quantity
-      const match = line.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*$/);
-      if (match) {
-        const name = match[1].trim().toLowerCase();
-        const price = parseFloat(match[2]);
-
-        // Skip if price looks like quantity (< 20)
-        if (price < 100 && name.length > 2 && !name.match(/^\d+$/)) {
-          items.push({
-            name,
-            quantity: 1,
-            unit: 'count',
-            location: 'Pantry',
-            confidence: 'high',
-          });
-        }
-      }
-    });
-
-    return items.slice(0, 20); // Limit to 20 items
   };
 
   const handleConfirmItems = () => {
