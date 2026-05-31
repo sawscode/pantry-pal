@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const UNITS = ['cups', 'oz', 'count', 'lbs', 'tsp', 'tbsp', 'g', 'kg', 'ml', 'l'];
+const CATEGORIES = ['Produce', 'Dairy', 'Pantry', 'Frozen', 'Meat', 'Other'];
 
 export function usePantryItems(householdId) {
   const [items, setItems] = useState([]);
@@ -71,7 +72,7 @@ export function usePantryItems(householdId) {
     };
   }, [householdId]);
 
-  const addItem = async (name, quantity, unit) => {
+  const addItem = async (name, quantity, unit, category = 'Other') => {
     try {
       setNetworkError(false);
 
@@ -99,6 +100,7 @@ export function usePantryItems(householdId) {
               name: name.trim(),
               quantity: parseFloat(quantity),
               unit,
+              category,
             },
           ]);
 
@@ -137,5 +139,6 @@ export function usePantryItems(householdId) {
     addItem,
     deleteItem,
     units: UNITS,
+    categories: CATEGORIES,
   };
 }

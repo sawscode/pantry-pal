@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import { supabase } from './lib/supabaseClient';
 import { usePantryItems } from './hooks/usePantryItems';
 import { LoginForm } from './components/LoginForm';
 import { AddItemForm } from './components/AddItemForm';
 import { PantryList } from './components/PantryList';
+import { RecipeSearch } from './components/RecipeSearch';
+import { BottomNav } from './components/BottomNav';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [householdId, setHouseholdId] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
   const [householdLoading, setHouseholdLoading] = useState(false);
+  const [currentTab, setCurrentTab] = useState('pantry');
 
-  const { items, loading, error, networkError, addItem, deleteItem, units } =
+  const { items, loading, error, networkError, addItem, deleteItem, units, categories } =
     usePantryItems(householdId);
 
   // Check for existing session and set up auth listener
@@ -97,6 +101,24 @@ export default function App() {
     setHouseholdId(null);
   };
 
+  const handleAddItem = async (name, quantity, unit, category) => {
+    try {
+      await addItem(name, quantity, unit, category);
+      toast.success(`Added ${name}`);
+    } catch (err) {
+      toast.error('Failed to add item');
+    }
+  };
+
+  const handleDeleteItem = async (id) => {
+    try {
+      await deleteItem(id);
+      toast.success('Item deleted');
+    } catch (err) {
+      toast.error('Failed to delete item');
+    }
+  };
+
   if (userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -110,7 +132,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+      <Toaster position="top-center" />
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -135,23 +158,38 @@ export default function App() {
           </p>
         ) : (
           <>
-            {/* Add Item Form */}
-            <AddItemForm
-              onAdd={addItem}
-              units={units}
-              loading={loading}
-              error={error}
-            />
+            {/* Pantry Tab */}
+            {currentTab === 'pantry' && (
+              <>
+                <AddItemForm
+                  onAdd={handleAddItem}
+                  units={units}
+                  categories={categories}
+                  loading={loading}
+                  error={error}
+                />
 
-            {/* Pantry List */}
-            <PantryList
-              items={items}
-              onDelete={deleteItem}
-              networkError={networkError}
-            />
+                <PantryList
+                  items={items}
+                  onDelete={handleDeleteItem}
+                  networkError={networkError}
+                  categories={categories}
+                />
+              </>
+            )}
+
+            {/* Recipes Tab */}
+            {currentTab === 'recipes' && (
+              <RecipeSearch householdId={householdId} pantryItems={items} />
+            )}
           </>
         )}
       </div>
+
+      {/* Bottom Navigation */}
+      {!householdLoading && (
+        <BottomNav currentTab={currentTab} onTabChange={setCurrentTab} />
+      )}
     </div>
   );
 }

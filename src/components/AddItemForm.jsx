@@ -1,9 +1,10 @@
 import { useState } from 'react';
 
-export function AddItemForm({ onAdd, units, loading, error }) {
+export function AddItemForm({ onAdd, units, categories, loading, error }) {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState(units[0] || 'cups');
+  const [category, setCategory] = useState(categories?.[0] || 'Other');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -12,10 +13,11 @@ export function AddItemForm({ onAdd, units, loading, error }) {
 
     setSubmitting(true);
     try {
-      await onAdd(name, quantity, unit);
+      await onAdd(name, quantity, unit, category);
       setName('');
       setQuantity('');
       setUnit(units[0] || 'cups');
+      setCategory(categories?.[0] || 'Other');
     } catch (err) {
       console.error('Add item failed:', err);
     } finally {
@@ -33,7 +35,7 @@ export function AddItemForm({ onAdd, units, loading, error }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium mb-2">Item Name</label>
           <input
@@ -46,6 +48,23 @@ export function AddItemForm({ onAdd, units, loading, error }) {
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium mb-2">Category</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+          >
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium mb-2">Quantity</label>
           <input
