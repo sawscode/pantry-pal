@@ -6,12 +6,36 @@ const CATEGORY_COLORS = {
   Pantry: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
   Frozen: 'bg-cyan-100 dark:bg-cyan-900 text-cyan-800 dark:text-cyan-200',
   Meat: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
+  Condiments: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
   Other: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200',
 };
+
+function getExpirationStatus(expirationDate) {
+  if (!expirationDate) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expDate = new Date(expirationDate);
+  expDate.setHours(0, 0, 0, 0);
+  const daysUntilExpiry = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+
+  if (daysUntilExpiry < 0) {
+    return { status: 'expired', label: 'Expired', color: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' };
+  } else if (daysUntilExpiry === 0) {
+    return { status: 'today', label: 'Expires today', color: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' };
+  } else if (daysUntilExpiry <= 3) {
+    return { status: 'soon', label: `Expires in ${daysUntilExpiry}d`, color: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' };
+  } else if (daysUntilExpiry <= 7) {
+    return { status: 'week', label: `Expires in ${daysUntilExpiry}d`, color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' };
+  }
+  return null;
+}
 
 export function ItemCard({ item, onDelete }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const expirationStatus = getExpirationStatus(item.expiration_date);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -51,20 +75,47 @@ export function ItemCard({ item, onDelete }) {
   }
 
   return (
-    <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
+    <div className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+      expirationStatus?.status === 'expired' || expirationStatus?.status === 'today'
+        ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+        : expirationStatus?.status === 'soon'
+        ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800'
+        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+    }`}>
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-2">
           <h3 className="font-medium text-gray-900 dark:text-white">{item.name}</h3>
           {item.category && (
             <span className={`text-xs font-semibold px-2 py-1 rounded ${CATEGORY_COLORS[item.category] || CATEGORY_COLORS.Other}`}>
               {item.category}
             </span>
           )}
+          {item.location && (
+            <span className="text-xs font-semibold px-2 py-1 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
+              {item.location}
+            </span>
+          )}
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {item.quantity} {item.unit}
-        </p>
+
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {item.quantity} {item.unit}
+          </p>
+
+          {expirationStatus && (
+            <span className={`text-xs font-semibold px-2 py-1 rounded ${expirationStatus.color}`}>
+              {expirationStatus.label}
+            </span>
+          )}
+        </div>
+
+        {item.notes && (
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+            {item.notes}
+          </p>
+        )}
       </div>
+
       <button
         onClick={() => setShowConfirm(true)}
         className="ml-4 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"

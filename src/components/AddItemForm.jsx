@@ -1,10 +1,12 @@
 import { useState } from 'react';
 
-export function AddItemForm({ onAdd, units, categories, loading, error }) {
+export function AddItemForm({ onAdd, units, categories, locations, loading, error }) {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState(units[0] || 'cups');
   const [category, setCategory] = useState(categories?.[0] || 'Other');
+  const [location, setLocation] = useState(locations?.[0] || 'Pantry');
+  const [expirationDate, setExpirationDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -13,11 +15,13 @@ export function AddItemForm({ onAdd, units, categories, loading, error }) {
 
     setSubmitting(true);
     try {
-      await onAdd(name, quantity, unit, category);
+      await onAdd(name, quantity, unit, category, location, expirationDate || null);
       setName('');
       setQuantity('');
       setUnit(units[0] || 'cups');
       setCategory(categories?.[0] || 'Other');
+      setLocation(locations?.[0] || 'Pantry');
+      setExpirationDate('');
     } catch (err) {
       console.error('Add item failed:', err);
     } finally {
@@ -42,12 +46,29 @@ export function AddItemForm({ onAdd, units, categories, loading, error }) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., Flour"
+            placeholder="e.g., Milk"
             required
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium mb-2">Location</label>
+          <select
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+          >
+            {locations.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium mb-2">Category</label>
           <select
@@ -62,9 +83,19 @@ export function AddItemForm({ onAdd, units, categories, loading, error }) {
             ))}
           </select>
         </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Expires (optional)</label>
+          <input
+            type="date"
+            value={expirationDate}
+            onChange={(e) => setExpirationDate(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium mb-2">Quantity</label>
           <input

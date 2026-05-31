@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const UNITS = ['cups', 'oz', 'count', 'lbs', 'tsp', 'tbsp', 'g', 'kg', 'ml', 'l'];
-const CATEGORIES = ['Produce', 'Dairy', 'Pantry', 'Frozen', 'Meat', 'Other'];
+const CATEGORIES = ['Produce', 'Dairy', 'Pantry', 'Frozen', 'Meat', 'Condiments', 'Other'];
+const LOCATIONS = ['Pantry', 'Fridge', 'Freezer'];
 
 export function usePantryItems(householdId) {
   const [items, setItems] = useState([]);
@@ -21,7 +22,7 @@ export function usePantryItems(householdId) {
           .from('pantry_items')
           .select('*')
           .eq('household_id', householdId)
-          .order('created_at', { ascending: true });
+          .order('created_at', { ascending: false });
 
         if (fetchError) throw fetchError;
         setItems(data || []);
@@ -49,7 +50,7 @@ export function usePantryItems(householdId) {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setItems((prev) => [...prev, payload.new]);
+            setItems((prev) => [payload.new, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
             setItems((prev) =>
               prev.map((item) => (item.id === payload.new.id ? payload.new : item))
@@ -72,44 +73,47 @@ export function usePantryItems(householdId) {
     };
   }, [householdId]);
 
-  const addItem = async (name, quantity, unit, category = 'Other') => {
+  const addItem = async (name, quantity, unit, category = 'Other', location = 'Pantry', expirationDate = null) => {
     try {
       setNetworkError(false);
 
-      // Check if item already exists
-      const existingItem = items.find(
-        (item) => item.name.toLowerCase() === name.toLowerCase()
-      );
+      // Create new item (no duplicate merging in V2)
+      const { error: insertError } = await supabase
+        .from('pantry_items')
+        .insert([
+          {
+            household_id: householdId,
+            name: name.trim(),
+            quantity: parseFloat(quantity),
+            unit,
+            category,
+            location,
+            expiration_date: expirationDate,
+          },
+        ]);
 
-      if (existingItem) {
-        // Increment quantity instead of creating duplicate
-        const newQuantity = existingItem.quantity + parseFloat(quantity);
-        const { error: updateError } = await supabase
-          .from('pantry_items')
-          .update({ quantity: newQuantity })
-          .eq('id', existingItem.id);
-
-        if (updateError) throw updateError;
-      } else {
-        // Create new item
-        const { error: insertError } = await supabase
-          .from('pantry_items')
-          .insert([
-            {
-              household_id: householdId,
-              name: name.trim(),
-              quantity: parseFloat(quantity),
-              unit,
-              category,
-            },
-          ]);
-
-        if (insertError) throw insertError;
-      }
+      if (insertError) throw insertError;
       setError(null);
     } catch (err) {
       setNetworkError(true);
       setError(err.message || 'Failed to add item');
+      throw err;
+    }
+  };
+
+  const updateItem = async (id, updates) => {
+    try {
+      setNetworkError(false);
+      const { error: updateError } = await supabase
+        .from('pantry_items')
+        .update(updates)
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+      setError(null);
+    } catch (err) {
+      setNetworkError(true);
+      setError(err.message || 'Failed to update item');
       throw err;
     }
   };
@@ -137,8 +141,10 @@ export function usePantryItems(householdId) {
     error,
     networkError,
     addItem,
+    updateItem,
     deleteItem,
     units: UNITS,
     categories: CATEGORIES,
+    locations: LOCATIONS,
   };
 }

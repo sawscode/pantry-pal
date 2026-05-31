@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { supabase } from './lib/supabaseClient';
 import { usePantryItems } from './hooks/usePantryItems';
+import { useUserRecipes } from './hooks/useUserRecipes';
 import { LoginForm } from './components/LoginForm';
 import { AddItemForm } from './components/AddItemForm';
 import { PantryList } from './components/PantryList';
-import { RecipeSearch } from './components/RecipeSearch';
+import { RecipeForm } from './components/RecipeForm';
+import { RecipesList } from './components/RecipesList';
+import { RecipeDetail } from './components/RecipeDetail';
+import { Dashboard } from './components/Dashboard';
 import { BottomNav } from './components/BottomNav';
 
 export default function App() {
@@ -13,10 +17,15 @@ export default function App() {
   const [householdId, setHouseholdId] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
   const [householdLoading, setHouseholdLoading] = useState(false);
-  const [currentTab, setCurrentTab] = useState('pantry');
+  const [currentTab, setCurrentTab] = useState('inventory');
 
-  const { items, loading, error, networkError, addItem, deleteItem, units, categories } =
+  const { items, loading, error, networkError, addItem, deleteItem, units, categories, locations } =
     usePantryItems(householdId);
+
+  const { recipes, createRecipe, updateRecipe, deleteRecipe } = useUserRecipes(householdId);
+  const [showRecipeForm, setShowRecipeForm] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
 
   // Check for existing session and set up auth listener
   useEffect(() => {
@@ -101,9 +110,9 @@ export default function App() {
     setHouseholdId(null);
   };
 
-  const handleAddItem = async (name, quantity, unit, category) => {
+  const handleAddItem = async (name, quantity, unit, category, location, expirationDate) => {
     try {
-      await addItem(name, quantity, unit, category);
+      await addItem(name, quantity, unit, category, location, expirationDate);
       toast.success(`Added ${name}`);
     } catch (err) {
       toast.error('Failed to add item');
@@ -116,6 +125,36 @@ export default function App() {
       toast.success('Item deleted');
     } catch (err) {
       toast.error('Failed to delete item');
+    }
+  };
+
+  const handleSaveRecipe = async (recipeData) => {
+    try {
+      if (editingRecipe) {
+        await updateRecipe(editingRecipe.id, {
+          name: recipeData.name,
+          ingredients: recipeData.ingredients,
+          instructions: recipeData.instructions,
+          prep_time_minutes: recipeData.prepTime,
+          cook_time_minutes: recipeData.cookTime,
+          servings: recipeData.servings,
+          notes: recipeData.notes,
+        });
+      } else {
+        await createRecipe(recipeData);
+      }
+      setShowRecipeForm(false);
+      setEditingRecipe(null);
+    } catch (err) {
+      toast.error('Failed to save recipe');
+    }
+  };
+
+  const handleDeleteRecipe = async (id) => {
+    try {
+      await deleteRecipe(id);
+    } catch (err) {
+      toast.error('Failed to delete recipe');
     }
   };
 
@@ -158,29 +197,93 @@ export default function App() {
           </p>
         ) : (
           <>
-            {/* Pantry Tab */}
-            {currentTab === 'pantry' && (
+            {/* Inventory Tab */}
+            {currentTab === 'inventory' && (
               <>
                 <AddItemForm
                   onAdd={handleAddItem}
                   units={units}
                   categories={categories}
+                  locations={locations}
                   loading={loading}
                   error={error}
                 />
-
                 <PantryList
                   items={items}
                   onDelete={handleDeleteItem}
                   networkError={networkError}
                   categories={categories}
+                  locations={locations}
                 />
               </>
             )}
 
             {/* Recipes Tab */}
             {currentTab === 'recipes' && (
-              <RecipeSearch householdId={householdId} pantryItems={items} />
+              <>
+                {selectedRecipe ? (
+                  <RecipeDetail
+                    recipe={selectedRecipe}
+                    onBack={() => setSelectedRecipe(null)}
+                    pantryItems={items}
+                  />
+                ) : showRecipeForm ? (
+                  <RecipeForm
+                    initialRecipe={editingRecipe}
+                    onSave={handleSaveRecipe}
+                    onCancel={() => {
+                      setShowRecipeForm(false);
+                      setEditingRecipe(null);
+                    }}
+                  />
+                ) : (
+                  <>
+                    <div className="mb-6">
+                      <button
+                        onClick={() => {
+                          setShowRecipeForm(true);
+                          setEditingRecipe(null);
+                        }}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 rounded-lg transition-colors"
+                      >
+                        + Create Recipe
+                      </button>
+                    </div>
+                    <RecipesList
+                      recipes={recipes}
+                      onEdit={(recipe) => {
+                        setEditingRecipe(recipe);
+                        setShowRecipeForm(true);
+                      }}
+                      onDelete={handleDeleteRecipe}
+                      onViewDetails={setSelectedRecipe}
+                    />
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Meal Plan Tab */}
+            {currentTab === 'mealplan' && (
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
+                <p className="text-gray-500 dark:text-gray-400 text-lg">
+                  📅 Meal Planning Coming Soon
+                </p>
+              </div>
+            )}
+
+            {/* Shopping Tab */}
+            {currentTab === 'shopping' && (
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
+                <p className="text-gray-500 dark:text-gray-400 text-lg">
+                  🛒 Shopping Lists Coming Soon
+                </p>
+              </div>
+            )}
+
+            {/* Dashboard Tab */}
+            {currentTab === 'dashboard' && (
+              <Dashboard items={items} recipes={recipes} />
             )}
           </>
         )}
